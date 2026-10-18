@@ -4,22 +4,47 @@ import { ADMIN_COOKIE, PRO_COOKIE, readSessionToken } from '@/lib/professionals/
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    const session = await readSessionToken(request.cookies.get(ADMIN_COOKIE)?.value)
+  // 1. Lasciamo passare sempre le chiamate API e la pagina di login
+  if (pathname === '/admin/login' || pathname === '/dashboard/login' || pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
+
+  // 2. Controllo protezione per le rotte Admin
+  if (pathname.startsWith('/admin')) {
+    let session = null
+    try {
+      const cookieValue = request.cookies.get(ADMIN_COOKIE)?.value
+      if (cookieValue) {
+        session = await readSessionToken(cookieValue)
+      }
+    } catch (error) {
+      console.error('Middleware Admin Session Error:', error)
+    }
+
     if (!session || session.role !== 'admin') {
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
-      url.search = `?next=${encodeURIComponent(pathname)}`
+      url.searchParams.set('next', pathname)
       return NextResponse.redirect(url)
     }
   }
 
-  if (pathname.startsWith('/dashboard') && pathname !== '/dashboard/login') {
-    const session = await readSessionToken(request.cookies.get(PRO_COOKIE)?.value)
+  // 3. Controllo protezione per le rotte Dashboard Professionisti
+  if (pathname.startsWith('/dashboard')) {
+    let session = null
+    try {
+      const cookieValue = request.cookies.get(PRO_COOKIE)?.value
+      if (cookieValue) {
+        session = await readSessionToken(cookieValue)
+      }
+    } catch (error) {
+      console.error('Middleware Dashboard Session Error:', error)
+    }
+
     if (!session || session.role !== 'psychologist') {
       const url = request.nextUrl.clone()
       url.pathname = '/dashboard/login'
-      url.search = `?next=${encodeURIComponent(pathname)}`
+      url.searchParams.set('next', pathname)
       return NextResponse.redirect(url)
     }
   }
