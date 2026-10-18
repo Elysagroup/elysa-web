@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // Definisci qui la password dell'amministratore
-const ADMIN_PASSWORD_HARDCODED = 'MiaPasswordElysa2026'
+const ADMIN_PASSWORD_HARDCODED = 'Elysa2026'
 
 export async function POST(request: NextRequest) {
   try {
