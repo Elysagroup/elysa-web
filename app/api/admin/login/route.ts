@@ -5,20 +5,27 @@ import { createSessionToken, sessionCookieName, sessionCookieOptions } from '@/l
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Definisci qui la password dell'amministratore
-const ADMIN_PASSWORD_HARDCODED = 'Elysa2026'
+function adminPassword() {
+  const password = process.env.ADMIN_PASSWORD || process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+  if (password && password.trim() !== '') return password.trim()
+  return 'MiaPasswordElysa2026' // Fallback se non impostata su Vercel
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
     const passwordInviata = typeof body?.password === 'string' ? body.password.trim() : ''
+    const expected = adminPassword()
 
-    // Confronto della password
-    if (!passwordInviata || passwordInviata !== ADMIN_PASSWORD_HARDCODED) {
+    if (!passwordInviata || passwordInviata !== expected) {
       return jsonError(401, 'invalid_credentials')
     }
 
-    // Creazione del token di sessione per l'admin
+    // Assicuriamo un segreto di sessione se non è presente in env
+    if (!process.env.SESSION_SECRET) {
+      process.env.SESSION_SECRET = 'elysa-session-secret-fallback-2026'
+    }
+
     const token = await createSessionToken({
       role: 'admin',
       email: 'info@elysagroup.com',
@@ -26,13 +33,11 @@ export async function POST(request: NextRequest) {
     })
 
     const response = NextResponse.json({ ok: true })
-    
-    // Impostazione del cookie di sessione
     response.cookies.set(sessionCookieName('admin'), token, sessionCookieOptions())
     
     return response
   } catch (error) {
-    console.error('Errore durante il login admin:', error)
+    console.error('Errore durante la creazione della sessione admin:', error)
     return jsonError(500, 'internal_error')
   }
 }
