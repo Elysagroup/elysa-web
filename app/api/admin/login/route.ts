@@ -6,9 +6,8 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 function adminPassword() {
-  const password = process.env.ADMIN_PASSWORD || process.env.NEXT_PUBLIC_ADMIN_PASSWORD
-  if (password && password.trim() !== '') return password.trim()
-  return 'MiaPasswordElysa2026' // Fallback se non impostata su Vercel
+  // Imposta esattamente la password che digiterai nel browser:
+  return 'Elysa2026'
 }
 
 export async function POST(request: NextRequest) {
