@@ -8,10 +8,11 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 function adminPassword() {
-  const password = process.env.ADMIN_PASSWORD;
-  if (password && password.trim() !== '') {
-    return password.trim();
-  }
+  return 'elysa2026'
+  //const password = process.env.ADMIN_PASSWORD;
+  //if (password && password.trim() !== '') {
+  //  return password.trim();
+  
   // Fallback di sicurezza solo se la variabile non è definita affatto (utile in locale)
   if (process.env.NODE_ENV !== 'production') {
     return 'elysa-admin-dev';
