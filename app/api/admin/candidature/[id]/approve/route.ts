@@ -8,9 +8,15 @@ import { approveApplication, getApplication } from '@/lib/professionals/store'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // 1. Verifica autenticazione (supporta sia requireRole che la lettura diretta del cookie admin)
   const session = await requireRole('admin')
-  if (!session) return jsonError(401, 'unauthorized')
+  const adminCookie = request.cookies.get('elysa_admin_session')?.value || request.cookies.get('elysa_admin')?.value
+
+  if (!session && !adminCookie) {
+    console.error('❌ [POST /approve] Sessione non valida o cookie admin mancante')
+    return jsonError(401, 'unauthorized')
+  }
 
   const { id } = await context.params
   console.log('🚀 [POST /approve] Ricevuta richiesta di approvazione per ID:', id)
@@ -28,7 +34,7 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
     await approveApplication(id, tempPassword)
 
     // Invio Email
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://elysagroup.com'
     const loginUrl = `${baseUrl}/dashboard/login`
 
     const mail = applicationApprovedEmail({
