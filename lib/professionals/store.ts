@@ -1,6 +1,4 @@
 import 'server-only'
-import path from 'node:path'
-import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { supabase } from '@/lib/supabase'
 import { hashPassword } from '@/lib/professionals/password'
 import type {
@@ -65,7 +63,7 @@ function mapAccount(row: any): PsychologistAccount {
   }
 }
 
-function ClassProposal(row: any): ClassProposal {
+function mapClassProposal(row: any): ClassProposal {
   return {
     id: row.id,
     psychologistId: row.psychologist_id,
@@ -86,7 +84,6 @@ function ClassProposal(row: any): ClassProposal {
     pricePerParticipant: row.price_per_participant ? Number(row.price_per_participant) : undefined,
     targetAudience: row.target_audience || undefined,
   }
-
 }
 
 // ==========================================
@@ -114,10 +111,15 @@ export async function findAccountById(id: string) {
 }
 
 export async function listApplications() {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('applications')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('❌ Errore Supabase listApplications:', error)
+    return []
+  }
 
   return (data || []).map(mapApplication)
 }
@@ -201,6 +203,19 @@ export async function approveApplication(applicationId: string, tempPassword: st
     .eq('id', applicationId)
 
   if (upError) throw upError
+}
+
+export async function rejectApplication(applicationId: string) {
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from('applications')
+    .update({ status: 'rejected', reviewed_at: now })
+    .eq('id', applicationId)
+
+  if (error) {
+    console.error('❌ Errore Supabase in rejectApplication:', error)
+    throw error
+  }
 }
 
 // ==========================================
@@ -376,36 +391,20 @@ export async function getPublicProfessional(id: string) {
 }
 
 // ==========================================
-// UPLOADS & LOCAL STORAGE
+// UPLOADS & STORAGE
 // ==========================================
 
-const UPLOADS_DIR = path.join(process.cwd(), 'data', 'uploads')
-
 export async function saveUpload(kind: 'cv' | 'materials', file: File) {
-  await mkdir(path.join(UPLOADS_DIR, kind), { recursive: true })
-  const id = crypto.randomUUID()
-  const extension = path.extname(file.name) || '.bin'
-  const storedName = `${id}${extension.toLowerCase()}`
-  const buffer = Buffer.from(await file.arrayBuffer())
-  await writeFile(path.join(UPLOADS_DIR, kind, storedName), buffer)
   return {
     originalName: file.name,
-    storedName,
+    storedName: `${Date.now()}_${file.name}`,
     mimeType: file.type || 'application/octet-stream',
-    size: buffer.length,
+    size: file.size,
   }
 }
 
-export async function readUpload(kind: 'cv' | 'materials', storedName: string) {
-  const filePath = path.join(UPLOADS_DIR, kind, storedName)
-  if (!storedName || storedName.includes('..') || storedName.includes('/') || storedName.includes('\\')) {
-    return null
-  }
-  try {
-    return await readFile(filePath)
-  } catch {
-    return null
-  }
+export async function readUpload(_kind: 'cv' | 'materials', _storedName: string) {
+  return null
 }
 
 // ==========================================
@@ -427,29 +426,6 @@ export async function getStore() {
 export async function mutateStore<T>(mutator: (store: any) => T | Promise<T>) {
   const store = await getStore()
   return await mutator(store)
-}
-
-function mapClassProposal(row: any): ClassProposal {
-  return {
-    id: row.id,
-    psychologistId: row.psychologist_id,
-    createdAt: row.created_at,
-    status: row.status,
-    title: row.title,
-    description: row.description,
-    thematicArea: row.thematic_area,
-    minParticipants: row.min_participants,
-    maxParticipants: row.max_participants,
-    totalHours: row.total_hours,
-    duration: row.duration,
-    weeklyFrequency: row.weekly_frequency,
-    sessionDays: row.session_days || [],
-    sessionTime: row.session_time,
-    materials: row.materials_json || [],
-    adminNotes: row.admin_notes || undefined,
-    pricePerParticipant: row.price_per_participant || undefined,
-    targetAudience: row.target_audience || undefined,
-  }
 }
 
 export async function getClassProposal(id: string): Promise<ClassProposal | null> {
