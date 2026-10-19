@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils'
 
 export function ClassProposalForm() {
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [notificationSent, setNotificationSent] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState<string>()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -47,17 +49,32 @@ export function ClassProposalForm() {
       return
     }
     setStatus('submitting')
+    setErrorMessage('')
     const form = new FormData()
     form.append('payload', JSON.stringify(values))
     for (const file of files) form.append('materials', file)
 
     try {
       const response = await fetch('/api/dashboard/proponi-classe', { method: 'POST', body: form })
-      const json = (await response.json()) as { ok?: boolean }
-      if (!response.ok || !json.ok) {
+      const json = (await response.json().catch(() => null)) as {
+        ok?: boolean
+        error?: string
+        notificationSent?: boolean
+        fieldErrors?: Record<string, string>
+      } | null
+      if (!response.ok || !json?.ok) {
+        const validationMessage = json?.fieldErrors ? Object.values(json.fieldErrors).join(' ') : ''
+        const messages: Record<string, string> = {
+          unauthorized: 'La sessione è scaduta. Accedi di nuovo all’area riservata.',
+          supabase_service_key_missing: 'Configurazione Supabase incompleta: contatta l’amministratore della piattaforma.',
+          material_storage_unavailable: 'Non è stato possibile caricare i PDF. Riprova senza allegati o contatta l’amministratore.',
+          proposal_save_failed: 'Supabase non ha salvato la proposta. Riprova tra poco; il problema è stato registrato.',
+        }
+        setErrorMessage(validationMessage || messages[json?.error ?? ''] || 'Invio non riuscito. Verifica i dati e riprova.')
         setStatus('error')
         return
       }
+      setNotificationSent(json.notificationSent === true)
       setStatus('success')
       reset()
       setFiles([])
@@ -70,10 +87,12 @@ export function ClassProposalForm() {
     return (
       <div className="rounded-3xl border border-border bg-white p-8">
         <CheckCircle2 className="size-10 text-sage-deep" />
-        <h2 className="mt-4 text-2xl font-semibold text-ocean">Proposta inviata</h2>
+        <h2 className="mt-4 text-2xl font-semibold text-ocean">Proposta salvata</h2>
         <p className="mt-3 leading-relaxed text-muted-foreground">
-          La proposta è stata salvata con stato in revisione. Il team Elysa ha ricevuto una notifica a
-          info@elysagroup.com e la valuterà prima della pubblicazione nella sezione percorsi.
+          La proposta è stata registrata e resta in revisione.{' '}
+          {notificationSent
+            ? 'Il team Elysa ha ricevuto la notifica e la valuterà prima della pubblicazione.'
+            : 'La notifica email non è partita, ma la proposta è visibile nel pannello admin.'}
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
           <Link href="/dashboard" className="font-medium text-ocean underline underline-offset-4">
@@ -91,7 +110,7 @@ export function ClassProposalForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
       {status === 'error' ? (
         <StatusBanner tone="error" title="Invio non riuscito.">
-          Controlla i campi e riprova. Se il problema continua, scrivi a info@elysagroup.com.
+          {errorMessage || 'Verifica i dati e riprova. Se il problema continua, scrivi a info@elysagroup.com.'}
         </StatusBanner>
       ) : null}
 

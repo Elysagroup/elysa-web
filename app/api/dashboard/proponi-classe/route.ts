@@ -73,6 +73,9 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       await deleteClassMaterials(materials)
       console.error('Errore salvataggio materiale proposta:', error)
+      if (error instanceof Error && error.message === 'SUPABASE_SERVICE_ROLE_KEY_MISSING') {
+        return jsonError(503, 'supabase_service_key_missing')
+      }
       return jsonError(503, 'material_storage_unavailable')
     }
   }
@@ -83,7 +86,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     await deleteClassMaterials(materials)
     console.error('Errore salvataggio proposta di classe:', error)
-    return jsonError(500, 'proposal_save_failed')
+    if (error instanceof Error && error.message === 'SUPABASE_SERVICE_ROLE_KEY_MISSING') {
+      return jsonError(503, 'supabase_service_key_missing')
+    }
+    const databaseCode = error && typeof error === 'object' && 'code' in error
+      ? String(error.code)
+      : undefined
+    return jsonError(500, 'proposal_save_failed', databaseCode ? { databaseCode } : undefined)
   }
 
   // 2. Prepara e invia l'e-mail di notifica all'amministrazione Elysa
@@ -96,6 +105,7 @@ export async function POST(request: NextRequest) {
     materials,
   }
 
+  let notificationSent = false
   try {
     const mail = classProposalAdminEmail(
       proposalForEmail,
@@ -108,7 +118,7 @@ export async function POST(request: NextRequest) {
       if (buffer) attachments.push({ filename: file.originalName, content: buffer })
     }
 
-    const sent = await sendMail({
+    notificationSent = await sendMail({
       to: ADMIN_INBOX,
       replyTo: account.email,
       subject: mail.subject,
@@ -118,10 +128,15 @@ export async function POST(request: NextRequest) {
       attachments: attachments.length ? attachments : undefined,
       idempotencyKey: `proposta-classe-${proposalId}`,
     })
-    if (!sent) console.error('Notifica email non inviata per la proposta di classe:', proposalId)
+    if (!notificationSent) console.error('Notifica email non inviata per la proposta di classe:', proposalId)
   } catch (error) {
     console.error('Errore notifica email proposta di classe:', error)
   }
 
-  return NextResponse.json({ ok: true, id: proposalId, message: 'Proposta inviata e in attesa di revisione.' })
+  return NextResponse.json({
+    ok: true,
+    id: proposalId,
+    notificationSent,
+    message: 'Proposta salvata e in attesa di revisione.',
+  })
 }

@@ -11,3 +11,8 @@ export const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY
 			auth: { autoRefreshToken: false, persistSession: false },
 		})
 	: null
+
+export function requireSupabaseAdmin() {
+	if (!supabaseAdmin) throw new Error('SUPABASE_SERVICE_ROLE_KEY_MISSING')
+	return supabaseAdmin
+}

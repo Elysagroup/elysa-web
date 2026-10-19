@@ -1,5 +1,5 @@
 import 'server-only'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { requireSupabaseAdmin, supabase, supabaseAdmin } from '@/lib/supabase'
 import { hashPassword } from '@/lib/professionals/password'
 import type {
   ClassProposal,
@@ -230,7 +230,7 @@ export async function createClassProposal(psychologistId: string, data: any) {
   const id = `class_${crypto.randomUUID()}`
   const now = new Date().toISOString()
 
-  const { error } = await supabase.from('class_proposals').insert([
+  const { error } = await requireSupabaseAdmin().from('class_proposals').insert([
     {
       id,
       psychologist_id: psychologistId,
@@ -297,7 +297,7 @@ export async function updateClassProposalStatus(
   status: 'approved' | 'rejected',
   reviewNote?: string,
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await requireSupabaseAdmin()
     .from('class_proposals')
     .update({ status, review_note: reviewNote || null, reviewed_at: new Date().toISOString() })
     .eq('id', id)
