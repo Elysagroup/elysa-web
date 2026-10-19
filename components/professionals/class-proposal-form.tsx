@@ -66,11 +66,12 @@ export function ClassProposalForm() {
         const validationMessage = json?.fieldErrors ? Object.values(json.fieldErrors).join(' ') : ''
         const messages: Record<string, string> = {
           unauthorized: 'La sessione è scaduta. Accedi di nuovo all’area riservata.',
+          SUPABASE_SERVICE_ROLE_KEY_MISSING: 'Configurazione Supabase incompleta: contatta l’amministratore della piattaforma.',
           supabase_service_key_missing: 'Configurazione Supabase incompleta: contatta l’amministratore della piattaforma.',
           material_storage_unavailable: 'Non è stato possibile caricare i PDF. Riprova senza allegati o contatta l’amministratore.',
           proposal_save_failed: 'Supabase non ha salvato la proposta. Riprova tra poco; il problema è stato registrato.',
         }
-        setErrorMessage(validationMessage || messages[json?.error ?? ''] || 'Invio non riuscito. Verifica i dati e riprova.')
+        setErrorMessage(validationMessage || messages[json?.error ?? ''] || json?.error || 'Invio non riuscito. Verifica i dati e riprova.')
         setStatus('error')
         return
       }
