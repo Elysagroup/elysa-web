@@ -8,6 +8,8 @@ export default function AdminClassActions({ proposalId, currentStatus }: { propo
   const router = useRouter()
 
   async function handleStatusChange(action: 'approved' | 'rejected') {
+    const note = action === 'rejected' ? window.prompt('Nota facoltativa per lo psicologo:') : ''
+    if (action === 'rejected' && note === null) return
     if (!confirm(`Sei sicuro di voler impostare la classe come ${action === 'approved' ? 'APPROVATA' : 'RIFIUTATA'}?`)) return
 
     setLoading(true)
@@ -15,13 +17,16 @@ export default function AdminClassActions({ proposalId, currentStatus }: { propo
       const res = await fetch(`/api/admin/classi/${proposalId}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, note: note || '' }),
       })
 
       if (res.ok) {
         router.refresh()
       } else {
-        alert('Errore durante l\'aggiornamento dello stato.')
+        const result = await res.json().catch(() => null)
+        alert(result?.error === 'already_reviewed'
+          ? 'Questa proposta è già stata revisionata. Aggiorna la pagina.'
+          : 'Errore durante l\'aggiornamento dello stato.')
       }
     } catch {
       alert('Errore di connessione.')

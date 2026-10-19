@@ -1,5 +1,5 @@
 import 'server-only'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { hashPassword } from '@/lib/professionals/password'
 import type {
   ClassProposal,
@@ -7,6 +7,7 @@ import type {
   PsychologistApplication,
   PublicClass,
   PublicProfessional,
+  StoredFile,
 } from '@/lib/professionals/types'
 
 export const DEMO_PSYCHOLOGIST_EMAIL = 'chiara.bianchi@elysa.demo'
@@ -69,20 +70,23 @@ function mapClassProposal(row: any): ClassProposal {
     psychologistId: row.psychologist_id,
     createdAt: row.created_at,
     status: (row.status || 'pending') as ClassProposal['status'],
+    reviewedAt: row.reviewed_at || undefined,
+    reviewNote: row.review_note || undefined,
     title: row.title,
     description: row.description,
     thematicArea: row.thematic_area,
+    targetAudience: row.target_audience || undefined,
     minParticipants: row.min_participants,
     maxParticipants: row.max_participants,
+    pricePerParticipant: row.price_per_participant != null ? Number(row.price_per_participant) : undefined,
     totalHours: row.total_hours || undefined,
     duration: row.duration || undefined,
     weeklyFrequency: row.weekly_frequency || undefined,
     sessionDays: row.session_days || [],
     sessionTime: row.session_time || undefined,
+    scheduleDetails: row.schedule_details || undefined,
+    locationType: row.location_type || undefined,
     materials: row.materials_json || [],
-    adminNotes: row.admin_notes || undefined,
-    pricePerParticipant: row.price_per_participant ? Number(row.price_per_participant) : undefined,
-    targetAudience: row.target_audience || undefined,
   }
 }
 
@@ -238,7 +242,7 @@ export async function createClassProposal(psychologistId: string, data: any) {
       target_audience: data.targetAudience || null,
       min_participants: Number(data.minParticipants) || 3,
       max_participants: Number(data.maxParticipants) || 10,
-      price_per_participant: data.pricePerParticipant ? Number(data.pricePerParticipant) : null,
+      price_per_participant: data.pricePerParticipant != null ? Number(data.pricePerParticipant) : null,
       schedule_details: data.scheduleDetails || null,
       total_hours: Number(data.totalHours) || 8,
       duration: data.duration || '4 settimane',
@@ -246,6 +250,7 @@ export async function createClassProposal(psychologistId: string, data: any) {
       session_days: data.sessionDays || [],
       session_time: data.sessionTime || '18:30',
       location_type: data.locationType || 'online',
+      materials_json: data.materials || [],
     },
   ])
 
@@ -276,16 +281,68 @@ export async function listAllClassProposals(): Promise<ClassProposal[]> {
   return (data || []).map(mapClassProposal)
 }
 
-export async function updateClassProposalStatus(id: string, status: 'approved' | 'rejected') {
-  const { error } = await supabase
+export async function listApprovedClassProposals(): Promise<ClassProposal[]> {
+  const { data, error } = await supabase
     .from('class_proposals')
-    .update({ status })
-    .eq('id', id)
+    .select('*')
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('❌ Errore aggiornamento stato classe:', error)
-    throw new Error(error.message)
+  if (error) throw error
+  return (data || []).map(mapClassProposal)
+}
+
+export async function updateClassProposalStatus(
+  id: string,
+  status: 'approved' | 'rejected',
+  reviewNote?: string,
+) {
+  const { data, error } = await supabase
+    .from('class_proposals')
+    .update({ status, review_note: reviewNote || null, reviewed_at: new Date().toISOString() })
+    .eq('id', id)
+    .in('status', ['pending', 'in_revisione_admin'])
+    .select('id')
+
+  if (error) throw new Error(error.message)
+  if (!data?.length) throw new Error('CLASS_PROPOSAL_ALREADY_REVIEWED')
+}
+
+export async function saveClassMaterial(file: File): Promise<StoredFile> {
+  if (!supabaseAdmin) throw new Error('SUPABASE_SERVICE_ROLE_KEY_MISSING')
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_') || 'material.pdf'
+  const storedName = `${crypto.randomUUID()}/${safeName}`
+  const { error } = await supabaseAdmin.storage
+    .from('class-proposal-materials')
+    .upload(storedName, Buffer.from(await file.arrayBuffer()), {
+      contentType: 'application/pdf',
+      upsert: false,
+    })
+
+  if (error) throw error
+  return {
+    originalName: file.name,
+    storedName,
+    mimeType: 'application/pdf',
+    size: file.size,
   }
+}
+
+export async function readClassMaterial(storedName: string) {
+  if (!supabaseAdmin) return null
+  const { data, error } = await supabaseAdmin.storage
+    .from('class-proposal-materials')
+    .download(storedName)
+  if (error || !data) return null
+  return Buffer.from(await data.arrayBuffer())
+}
+
+export async function deleteClassMaterials(materials: StoredFile[]) {
+  if (!supabaseAdmin || materials.length === 0) return
+  const { error } = await supabaseAdmin.storage
+    .from('class-proposal-materials')
+    .remove(materials.map((material) => material.storedName))
+  if (error) console.error('Errore rimozione materiali proposta:', error)
 }
 
 // ==========================================

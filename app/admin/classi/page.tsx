@@ -2,18 +2,29 @@ import { requireRole } from '@/lib/professionals/http'
 import { listAllClassProposals, findAccountById } from '@/lib/professionals/store'
 import { competenceAreaLabel } from '@/lib/professionals/constants'
 import AdminClassActions from './AdminClassActions'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminClassesPage() {
+export default async function AdminClassesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>
+}) {
   const session = await requireRole('admin')
   if (!session) return null
 
+  const { status = 'all' } = await searchParams
   const proposals = await listAllClassProposals()
+  const filteredProposals = status === 'all'
+    ? proposals
+    : proposals.filter((proposal) => status === 'pending'
+      ? proposal.status === 'pending' || proposal.status === 'in_revisione_admin'
+      : proposal.status === status)
 
   // Arricchiamo le proposte con i dati dello psicologo mittente
   const proposalsWithPro = await Promise.all(
-    proposals.map(async (prop) => {
+    filteredProposals.map(async (prop) => {
       const pro = await findAccountById(prop.psychologistId)
       return { ...prop, psychologist: pro }
     })
@@ -25,6 +36,24 @@ export default async function AdminClassesPage() {
       <p className="text-muted-foreground mb-8">
         Revisiona, approva o rifiuta le proposte di gruppi psicologici inviate dai professionisti.
       </p>
+
+      <nav aria-label="Filtra proposte per stato" className="mb-8 flex flex-wrap gap-2">
+        {[
+          { id: 'all', label: `Tutte (${proposals.length})` },
+          { id: 'pending', label: `In attesa (${proposals.filter((item) => item.status === 'pending' || item.status === 'in_revisione_admin').length})` },
+          { id: 'approved', label: `Approvate (${proposals.filter((item) => item.status === 'approved').length})` },
+          { id: 'rejected', label: `Rifiutate (${proposals.filter((item) => item.status === 'rejected').length})` },
+        ].map((filter) => (
+          <Link
+            key={filter.id}
+            href={filter.id === 'all' ? '/admin/classi' : `/admin/classi?status=${filter.id}`}
+            aria-current={status === filter.id ? 'page' : undefined}
+            className={`rounded-full border px-4 py-2 text-sm font-medium ${status === filter.id ? 'border-ocean bg-ocean text-white' : 'border-border bg-white text-ocean hover:bg-secondary'}`}
+          >
+            {filter.label}
+          </Link>
+        ))}
+      </nav>
 
       {proposalsWithPro.length === 0 ? (
         <div className="bg-white border border-border rounded-2xl p-8 text-center text-muted-foreground">
@@ -79,7 +108,39 @@ export default async function AdminClassesPage() {
                   <div><strong>Prezzo/persona:</strong> {item.pricePerParticipant ? `€${item.pricePerParticipant}` : 'Non specificato'}</div>
                   <div><strong>Durata:</strong> {item.duration || '8 ore'}</div>
                   <div><strong>Frequenza:</strong> {item.weeklyFrequency || 'Settimanale'}</div>
+                  <div><strong>Modalità:</strong> {item.locationType === 'in-person' ? 'In presenza' : item.locationType === 'hybrid' ? 'Ibrida' : 'Online'}</div>
+                  <div><strong>Orario:</strong> {item.sessionTime || 'Da definire'}</div>
                 </div>
+
+                {item.targetAudience || item.scheduleDetails ? (
+                  <div className="mb-5 space-y-2 text-sm text-muted-foreground">
+                    {item.targetAudience ? <p><strong>Destinatari:</strong> {item.targetAudience}</p> : null}
+                    {item.scheduleDetails ? <p className="whitespace-pre-wrap"><strong>Calendario:</strong> {item.scheduleDetails}</p> : null}
+                  </div>
+                ) : null}
+
+                {item.materials.length ? (
+                  <p className="mb-5 text-sm text-muted-foreground">
+                    <strong>Materiali:</strong>{' '}
+                    {item.materials.map((file, index) => (
+                      <span key={file.storedName}>
+                        {index > 0 ? ', ' : null}
+                        <a
+                          href={`/api/admin/classi/${encodeURIComponent(item.id)}/materials/${index}`}
+                          className="font-medium text-ocean underline underline-offset-4"
+                        >
+                          {file.originalName}
+                        </a>
+                      </span>
+                    ))}
+                  </p>
+                ) : null}
+
+                {item.reviewNote ? (
+                  <p className="mb-5 rounded-lg border border-border bg-secondary/20 p-3 text-sm text-muted-foreground">
+                    <strong>Nota revisione:</strong> {item.reviewNote}
+                  </p>
+                ) : null}
 
                 {/* Pulsanti di azione client-side */}
                 <AdminClassActions proposalId={item.id} currentStatus={item.status} />

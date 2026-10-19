@@ -34,6 +34,7 @@ export function ClassProposalForm() {
       duration: '',
       sessionTime: '',
       sessionDays: [],
+      locationType: 'online',
     },
   })
 
@@ -123,6 +124,11 @@ export function ClassProposalForm() {
           </select>
           <FieldMessage id="class-area-error" error={errors.thematicArea} />
         </div>
+        <div>
+          <FieldLabel htmlFor="class-target">Destinatari</FieldLabel>
+          <input id="class-target" className={fieldInputClass} placeholder="Es. adulti, genitori, giovani adulti" {...register('targetAudience')} />
+          <FieldMessage id="class-target-error" error={errors.targetAudience} />
+        </div>
       </FormCard>
 
       <FormCard title="Struttura del gruppo">
@@ -149,6 +155,11 @@ export function ClassProposalForm() {
             <FieldMessage id="class-hours-error" error={errors.totalHours} />
           </div>
           <div>
+            <FieldLabel htmlFor="class-price">Prezzo per partecipante (€)</FieldLabel>
+            <input id="class-price" type="number" min={0} max={10000} step="0.01" className={fieldInputClass} {...register('pricePerParticipant', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+            <FieldMessage id="class-price-error" error={errors.pricePerParticipant} />
+          </div>
+          <div>
             <FieldLabel htmlFor="class-duration" required>
               Durata complessiva
             </FieldLabel>
@@ -168,6 +179,15 @@ export function ClassProposalForm() {
               ))}
             </select>
             <FieldMessage id="class-freq-error" error={errors.weeklyFrequency} />
+          </div>
+          <div className="sm:col-span-2">
+            <FieldLabel htmlFor="class-location" required>Modalità</FieldLabel>
+            <select id="class-location" className={fieldInputClass} {...register('locationType')}>
+              <option value="online">Online</option>
+              <option value="in-person">In presenza</option>
+              <option value="hybrid">Ibrida</option>
+            </select>
+            <FieldMessage id="class-location-error" error={errors.locationType} />
           </div>
         </div>
         <fieldset>
@@ -200,6 +220,11 @@ export function ClassProposalForm() {
           </FieldLabel>
           <input id="class-time" className={fieldInputClass} placeholder="Es. 18:30–20:00" {...register('sessionTime')} />
           <FieldMessage id="class-time-error" error={errors.sessionTime} />
+        </div>
+        <div>
+          <FieldLabel htmlFor="class-schedule-details">Date e dettagli del calendario</FieldLabel>
+          <textarea id="class-schedule-details" rows={3} className={cn(fieldInputClass, 'resize-y')} placeholder="Indica eventuali date di avvio o vincoli di calendario" {...register('scheduleDetails')} />
+          <FieldMessage id="class-schedule-details-error" error={errors.scheduleDetails} />
         </div>
       </FormCard>
 

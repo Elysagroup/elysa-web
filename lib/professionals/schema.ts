@@ -154,8 +154,10 @@ export const classProposalSchema = z
     thematicArea: z.enum(competenceAreaIds as [string, ...string[]], {
       message: 'Seleziona l’area tematica di riferimento.',
     }),
+    targetAudience: z.string().trim().max(300, 'Massimo 300 caratteri.').optional(),
     minParticipants: z.number({ message: 'Indica il numero minimo di partecipanti.' }).int().min(3, 'Il minimo è 3 partecipanti.').max(40),
     maxParticipants: z.number({ message: 'Indica il numero massimo di partecipanti.' }).int().min(3, 'Il massimo deve essere almeno 3.').max(50),
+    pricePerParticipant: z.number().min(0, 'Il prezzo non può essere negativo.').max(10000, 'Verifica il prezzo indicato.').optional(),
     totalHours: z.number({ message: 'Indica le ore totali del percorso.' }).min(2, 'Indica le ore totali del percorso.').max(200),
     duration: requiredText(FIELD_LIMITS.duration, 'Indica la durata complessiva (es. 8 settimane).'),
     weeklyFrequency: z.enum(frequencyIds, {
@@ -165,6 +167,8 @@ export const classProposalSchema = z
       .array(z.enum(WEEKDAY_IDS as [string, ...string[]]))
       .min(1, 'Indica almeno un giorno ipotetico per le sessioni live.'),
     sessionTime: requiredText(FIELD_LIMITS.sessionTime, 'Indica un orario ipotetico (es. 18:30–20:00).'),
+    scheduleDetails: z.string().trim().max(600, 'Massimo 600 caratteri.').optional(),
+    locationType: z.enum(['online', 'in-person', 'hybrid']),
   })
   .superRefine((data, ctx) => {
     if (data.maxParticipants < data.minParticipants) {
@@ -180,6 +184,19 @@ export type ClassProposalFormValues = z.infer<typeof classProposalSchema>
 
 export const rejectApplicationSchema = z.object({
   note: z.string().trim().max(600).optional().or(z.literal('')),
+})
+
+export const reviewClassProposalSchema = z.object({
+  action: z.enum(['approved', 'rejected']),
+  note: z.string().trim().max(600).optional().or(z.literal('')),
+})
+
+export const classEnrollmentSchema = z.object({
+  proposalId: z.string().min(1),
+  name: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(FIELD_LIMITS.email),
+  phone: z.string().trim().max(FIELD_LIMITS.phone).optional(),
+  notes: z.string().trim().max(1000).optional(),
 })
 
 export const competenceAreaOptions = COMPETENCE_AREAS

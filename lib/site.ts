@@ -5,9 +5,7 @@ export const siteConfig = {
   email: 'info@elysagroup.com',
   url:
     process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : 'http://localhost:3000'),
+    'https://www.elysagroup.com',
 }
 
 export const CONTACT_EMAIL = siteConfig.email

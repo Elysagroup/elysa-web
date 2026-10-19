@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { jsonError } from '@/lib/professionals/http'
-import { getClassProposal, findAccountById } from '@/lib/professionals/store' // <-- Usa getClassProposal
+import { classEnrollmentSchema } from '@/lib/professionals/schema'
+import { getClassProposal, findAccountById } from '@/lib/professionals/store'
 import { classEnrollmentEmail } from '@/lib/professionals/emails'
 
 export const runtime = 'nodejs'
@@ -9,14 +10,11 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null)
-    const { proposalId, name, email, phone, notes } = body || {}
+    const parsed = classEnrollmentSchema.safeParse(body)
+    if (!parsed.success) return jsonError(422, 'validation_error')
+    const { proposalId, name, email, phone, notes } = parsed.data
 
-    if (!proposalId || !name || !email) {
-      return jsonError(400, 'missing_required_fields')
-    }
-
-    // Recupera la classe approvata usando la funzione corretta del tuo store
-    const proposal = await getClassProposal(proposalId) // <-- Qui
+    const proposal = await getClassProposal(proposalId)
     if (!proposal || proposal.status !== 'approved') {
       return jsonError(404, 'class_not_found')
     }
@@ -28,8 +26,7 @@ export async function POST(request: NextRequest) {
     const psychologistEmail = psychologist?.email || 'info@elysagroup.com'
     const psychologistName = psychologist ? `${psychologist.firstName} ${psychologist.lastName}` : 'Psicologo Elysa'
 
-    // Invia l'email con i dettagli
-    await classEnrollmentEmail({
+    const sent = await classEnrollmentEmail({
       psychologistEmail,
       psychologistName,
       classTitle: proposal.title,
@@ -39,7 +36,8 @@ export async function POST(request: NextRequest) {
       userNotes: notes,
     })
 
-    return NextResponse.json({ ok: true })
+    if (!sent) return jsonError(503, 'notification_unavailable')
+    return NextResponse.json({ ok: true, message: 'Richiesta inviata. Ti ricontatteremo presto.' })
   } catch (error) {
     console.error('❌ Errore durante l\'iscrizione alla classe:', error)
     return jsonError(500, 'server_error')

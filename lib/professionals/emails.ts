@@ -177,8 +177,12 @@ export function classProposalAdminEmail(
     ['Frequenza', proposal.weeklyFrequency || '-'],
     ['Giorni', proposal.sessionDays?.length ? proposal.sessionDays.map(weekdayLabel).join(', ') : '-'],
     ['Orario', proposal.sessionTime || '-'],
+    ['Calendario proposto', proposal.scheduleDetails || '-'],
+    ['Modalità', proposal.locationType || 'online'],
+    ['Destinatari', proposal.targetAudience || '-'],
     ['Materiali', proposal.materials?.length ? proposal.materials.map((file) => file.originalName).join(', ') : '-'],
   ]
+  const reviewUrl = `${siteConfig.url.replace(/\/$/, '')}/admin/classi`
 
   return {
     subject: `Nuova proposta di classe — ${proposal.title}`,
@@ -188,7 +192,8 @@ export function classProposalAdminEmail(
       `<p>È arrivata una nuova proposta di percorso, in attesa di approvazione prima della pubblicazione.</p>
        ${rowsHtml(rows)}
        <p style="margin:16px 0 8px;color:#46505e;font-size:13px;">Descrizione</p>
-       <div style="white-space:pre-wrap;background:#f8f7f4;border-radius:8px;padding:12px;">${escapeHtml(proposal.description)}</div>`,
+       <div style="white-space:pre-wrap;background:#f8f7f4;border-radius:8px;padding:12px;">${escapeHtml(proposal.description)}</div>
+       <p style="margin:20px 0 0;"><a href="${escapeHtml(reviewUrl)}" style="color:#1a2b48;font-weight:bold;">Apri il pannello di revisione</a></p>`,
     ),
     text: [
       'Nuova proposta di classe Elysa',
@@ -196,7 +201,43 @@ export function classProposalAdminEmail(
       ...rows.map(([label, value]) => `${label}: ${value}`),
       '',
       proposal.description,
+      '',
+      `Revisiona la proposta: ${reviewUrl}`,
     ].join('\n'),
+  }
+}
+
+export function classProposalReviewEmail({
+  firstName,
+  title,
+  status,
+  note,
+}: {
+  firstName: string
+  title: string
+  status: 'approved' | 'rejected'
+  note?: string
+}) {
+  const approved = status === 'approved'
+  const classesUrl = `${siteConfig.url.replace(/\/$/, '')}/per-le-persone/classi`
+  const subject = approved
+    ? `La tua classe "${title}" è stata approvata`
+    : `Aggiornamento sulla proposta "${title}"`
+  const body = approved
+    ? `<p>Ciao ${escapeHtml(firstName)},</p>
+       <p>La proposta <strong>${escapeHtml(title)}</strong> è stata approvata ed è ora visibile nella vetrina dei percorsi Elysa.</p>
+       <p><a href="${escapeHtml(classesUrl)}" style="color:#1a2b48;font-weight:bold;">Vai ai percorsi pubblicati</a></p>`
+    : `<p>Ciao ${escapeHtml(firstName)},</p>
+       <p>Abbiamo concluso la revisione della proposta <strong>${escapeHtml(title)}</strong>. In questa fase non è stato possibile approvarla.</p>
+       ${note ? `<p>Nota del team: ${escapeHtml(note)}</p>` : ''}
+       <p>Grazie per aver proposto un percorso a Elysa.</p>`
+
+  return {
+    subject,
+    html: wrapEmail('Percorsi Elysa', approved ? 'Proposta approvata' : 'Esito della proposta', body),
+    text: approved
+      ? `Ciao ${firstName},\n\nLa proposta "${title}" è stata approvata ed è pubblicata qui: ${classesUrl}`
+      : `Ciao ${firstName},\n\nLa proposta "${title}" non è stata approvata in questa fase.${note ? `\n\nNota del team: ${note}` : ''}`,
   }
 }
 
@@ -216,7 +257,7 @@ export async function classEnrollmentEmail({
   userEmail: string
   userPhone?: string
   userNotes?: string
-}) {
+}): Promise<boolean> {
   const subject = `Nuova richiesta di iscrizione per la classe: "${classTitle}"`
   
   const text = `
@@ -235,19 +276,19 @@ Lo psicologo di riferimento è ${psychologistName} (${psychologistEmail}).
     'Elysa',
     'Nuova richiesta di iscrizione',
     `
-      <p>È stata ricevuta una nuova richiesta di iscrizione per la classe <strong>"${classTitle}"</strong>.</p>
+      <p>È stata ricevuta una nuova richiesta di iscrizione per la classe <strong>"${escapeHtml(classTitle)}"</strong>.</p>
       <div style="background-color: #f8fafc; padding: 16px; border-radius: 12px; margin: 16px 0; border: 1px solid #e2e8f0;">
-        <p style="margin: 0 0 8px 0;"><strong>Utente:</strong> ${userName} (${userEmail})</p>
-        <p style="margin: 0 0 8px 0;"><strong>Telefono:</strong> ${userPhone || 'Non specificato'}</p>
-        <p style="margin: 0;"><strong>Note / Richieste:</strong> ${userNotes || 'Nessuna nota aggiuntiva'}</p>
+        <p style="margin: 0 0 8px 0;"><strong>Utente:</strong> ${escapeHtml(userName)} (${escapeHtml(userEmail)})</p>
+        <p style="margin: 0 0 8px 0;"><strong>Telefono:</strong> ${escapeHtml(userPhone || 'Non specificato')}</p>
+        <p style="margin: 0;"><strong>Note / Richieste:</strong> ${escapeHtml(userNotes || 'Nessuna nota aggiuntiva')}</p>
       </div>
-      <p style="color: #64748b; font-size: 13px;">Psicologo di riferimento: ${psychologistName}</p>
+      <p style="color: #64748b; font-size: 13px;">Psicologo di riferimento: ${escapeHtml(psychologistName)} (${escapeHtml(psychologistEmail)})</p>
     `
   )
 
   // Inviamo l'email sia a info@elysagroup.com che allo psicologo usando il mailer del progetto
   // (Verifica se nel tuo progetto importi sendMail da './mailer' o usi un metodo simile)
-  await sendMail({
+  return sendMail({
     to: ['info@elysagroup.com', psychologistEmail],
     subject,
     html,

@@ -57,16 +57,22 @@ export type ClassProposal = {
   psychologistId: string
   createdAt: string
   status: ClassProposalStatus
+  reviewedAt?: string
+  reviewNote?: string
   title: string
   description: string
   thematicArea: string
+  targetAudience?: string
   minParticipants: number
   maxParticipants: number
+  pricePerParticipant?: number
   totalHours: number
   duration: string
   weeklyFrequency: string
   sessionDays: string[]
   sessionTime: string
+  scheduleDetails?: string
+  locationType?: 'online' | 'in-person' | 'hybrid'
   materials: StoredFile[]
 }
 

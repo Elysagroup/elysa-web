@@ -4,7 +4,13 @@ import { classProposalAdminEmail } from '@/lib/professionals/emails'
 import { isPdfFile, jsonError, requireRole } from '@/lib/professionals/http'
 import { ADMIN_INBOX, sendMail } from '@/lib/professionals/mailer'
 import { classProposalSchema } from '@/lib/professionals/schema'
-import { createClassProposal, findAccountById, readUpload, saveUpload } from '@/lib/professionals/store'
+import {
+  createClassProposal,
+  deleteClassMaterials,
+  findAccountById,
+  readClassMaterial,
+  saveClassMaterial,
+} from '@/lib/professionals/store'
 import type { StoredFile } from '@/lib/professionals/types'
 
 export const runtime = 'nodejs'
@@ -46,6 +52,9 @@ export async function POST(request: NextRequest) {
     return jsonError(422, 'validation_error', { fieldErrors })
   }
 
+  const account = await findAccountById(session.accountId)
+  if (!account) return jsonError(401, 'unauthorized')
+
   const materials: StoredFile[] = []
   const files = form.getAll('materials').filter((item): item is File => item instanceof File && item.size > 0)
   if (files.length > MAX_MATERIALS) {
@@ -59,17 +68,23 @@ export async function POST(request: NextRequest) {
         fieldErrors: { materials: 'Ogni allegato deve essere un PDF di massimo 8MB.' },
       })
     }
-    materials.push(await saveUpload('materials', file))
+    try {
+      materials.push(await saveClassMaterial(file))
+    } catch (error) {
+      await deleteClassMaterials(materials)
+      console.error('Errore salvataggio materiale proposta:', error)
+      return jsonError(503, 'material_storage_unavailable')
+    }
   }
 
-  const account = await findAccountById(session.accountId)
-  if (!account) return jsonError(401, 'unauthorized')
-
-  // 1. Salva la proposta di classe direttamente su SUPABASE
-  const proposalId = await createClassProposal(account.id, {
-    ...parsed.data,
-    materials,
-  })
+  let proposalId: string
+  try {
+    proposalId = await createClassProposal(account.id, { ...parsed.data, materials })
+  } catch (error) {
+    await deleteClassMaterials(materials)
+    console.error('Errore salvataggio proposta di classe:', error)
+    return jsonError(500, 'proposal_save_failed')
+  }
 
   // 2. Prepara e invia l'e-mail di notifica all'amministrazione Elysa
   const proposalForEmail = {
@@ -81,28 +96,32 @@ export async function POST(request: NextRequest) {
     materials,
   }
 
-  const mail = classProposalAdminEmail(
-    proposalForEmail as any,
-    `${account.firstName} ${account.lastName}`,
-    account.email,
-  )
+  try {
+    const mail = classProposalAdminEmail(
+      proposalForEmail,
+      `${account.firstName} ${account.lastName}`,
+      account.email,
+    )
+    const attachments = []
+    for (const file of materials) {
+      const buffer = await readClassMaterial(file.storedName)
+      if (buffer) attachments.push({ filename: file.originalName, content: buffer })
+    }
 
-  const attachments = []
-  for (const file of materials) {
-    const buffer = await readUpload('materials', file.storedName)
-    if (buffer) attachments.push({ filename: file.originalName, content: buffer })
+    const sent = await sendMail({
+      to: ADMIN_INBOX,
+      replyTo: account.email,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+      tag: 'proposta_classe',
+      attachments: attachments.length ? attachments : undefined,
+      idempotencyKey: `proposta-classe-${proposalId}`,
+    })
+    if (!sent) console.error('Notifica email non inviata per la proposta di classe:', proposalId)
+  } catch (error) {
+    console.error('Errore notifica email proposta di classe:', error)
   }
 
-  await sendMail({
-    to: ADMIN_INBOX,
-    replyTo: account.email,
-    subject: mail.subject,
-    html: mail.html,
-    text: mail.text,
-    tag: 'proposta_classe',
-    attachments: attachments.length ? attachments : undefined,
-    idempotencyKey: `proposta-classe-${proposalId}`,
-  })
-
-  return NextResponse.json({ ok: true, id: proposalId })
+  return NextResponse.json({ ok: true, id: proposalId, message: 'Proposta inviata e in attesa di revisione.' })
 }

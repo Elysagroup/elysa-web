@@ -1,14 +1,11 @@
-import { listAllClassProposals, findAccountById } from '@/lib/professionals/store'
-import { competenceAreaLabel } from '@/lib/professionals/constants'
+import { listApprovedClassProposals, findAccountById } from '@/lib/professionals/store'
+import { competenceAreaLabel, weekdayLabel } from '@/lib/professionals/constants'
 import PublicEnrollModal from './PublicEnrollModal'
 
 export const dynamic = 'force-dynamic'
 
 export default async function PublicClassesPage() {
-  const allProposals = await listAllClassProposals()
-  
-  // Filtriamo solo le classi approvate
-  const approvedClasses = allProposals.filter((p) => p.status === 'approved')
+  const approvedClasses = await listApprovedClassProposals()
 
   const classesWithPro = await Promise.all(
     approvedClasses.map(async (item) => {
@@ -51,13 +48,22 @@ export default async function PublicClassesPage() {
                   <p className="text-slate-700 text-sm mb-6 leading-relaxed">
                     {item.description}
                   </p>
+                  {item.targetAudience ? (
+                    <p className="mb-4 text-sm text-muted-foreground"><strong>Destinatari:</strong> {item.targetAudience}</p>
+                  ) : null}
 
                   <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground mb-6 bg-secondary/10 p-4 rounded-xl border border-border/50">
                     <div><strong>Partecipanti:</strong> {item.minParticipants} - {item.maxParticipants} persone</div>
-                    <div><strong>Prezzo:</strong> {item.pricePerParticipant ? `€${item.pricePerParticipant}` : 'Su richiesta'}</div>
+                    <div><strong>Prezzo:</strong> {item.pricePerParticipant != null ? `€${item.pricePerParticipant}` : 'Su richiesta'}</div>
                     <div><strong>Durata:</strong> {item.duration || '8 settimane'}</div>
                     <div><strong>Frequenza:</strong> {item.weeklyFrequency || 'Settimanale'}</div>
+                    <div><strong>Modalità:</strong> {item.locationType === 'in-person' ? 'In presenza' : item.locationType === 'hybrid' ? 'Ibrida' : 'Online'}</div>
+                    <div><strong>Giorni:</strong> {item.sessionDays.length ? item.sessionDays.map(weekdayLabel).join(', ') : 'Da definire'}</div>
+                    <div><strong>Orario:</strong> {item.sessionTime || 'Da definire'}</div>
                   </div>
+                  {item.scheduleDetails ? (
+                    <p className="mb-6 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{item.scheduleDetails}</p>
+                  ) : null}
                 </div>
 
                 {/* Modale/Form interattivo per richiedere l'iscrizione */}
