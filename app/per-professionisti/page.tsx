@@ -26,7 +26,7 @@ export default function PerProfessionistiPage() {
         intro="Elysa offre a psicologi e professionisti della salute mentale la possibilità di progettare percorsi tematici strutturati, incontrare persone interessate e valorizzare il proprio approccio in un ambiente digitale dedicato."
       >
         <ButtonLink href="/candidatura-psicologo">
-          Candidati come professionista
+          Invia la candidatura
           <ArrowRight aria-hidden="true" />
         </ButtonLink>
         <ButtonLink href="/contatti?tipo=centro" variant="secondary">
@@ -69,6 +69,24 @@ export default function PerProfessionistiPage() {
       </Section>
 
       <ProStepsSection />
+
+      <Section tone="sage" labelledBy="candidatura-dopo-passaggi">
+        <div className="flex flex-col gap-6 border-l-4 border-ocean pl-5 sm:pl-7 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sage-deep">Il prossimo passo</p>
+            <h2 id="candidatura-dopo-passaggi" className="mt-2 text-2xl font-semibold text-ocean sm:text-3xl">
+              Presenta il tuo progetto a Elysa.
+            </h2>
+            <p className="mt-3 leading-relaxed text-muted-foreground">
+              Raccontaci la tua esperienza e l’idea di percorso che vorresti sviluppare. Il team valuterà la candidatura e ti ricontatterà.
+            </p>
+          </div>
+          <ButtonLink href="/candidatura-psicologo" className="shrink-0 self-start lg:self-auto">
+            Invia la candidatura
+            <ArrowRight aria-hidden="true" />
+          </ButtonLink>
+        </div>
+      </Section>
 
       <Section tone="white" labelledBy="cosa-definisci">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-20">
@@ -122,7 +140,7 @@ export default function PerProfessionistiPage() {
             </div>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-            <ButtonLink href="/candidatura-psicologo">Invia una candidatura</ButtonLink>
+            <ButtonLink href="/candidatura-psicologo">Invia la candidatura</ButtonLink>
             <ButtonLink href="/dashboard/login" variant="secondary">
               Accedi all’area riservata
             </ButtonLink>
