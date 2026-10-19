@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { ADMIN_COOKIE, PRO_COOKIE } from '@/lib/professionals/session'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -11,7 +10,7 @@ export async function middleware(request: NextRequest) {
 
   // 2. Controllo per la rotta Admin
   if (pathname.startsWith('/admin')) {
-    const adminCookie = request.cookies.get(ADMIN_COOKIE)?.value
+    const adminCookie = request.cookies.get('elysa_admin_session')?.value
 
     if (!adminCookie) {
       const url = request.nextUrl.clone()
@@ -23,7 +22,7 @@ export async function middleware(request: NextRequest) {
 
   // 3. Controllo per la rotta Dashboard Professionisti
   if (pathname.startsWith('/dashboard')) {
-    const proCookie = request.cookies.get(PRO_COOKIE)?.value
+    const proCookie = request.cookies.get('elysa_pro_session')?.value
 
     if (!proCookie) {
       const url = request.nextUrl.clone()
