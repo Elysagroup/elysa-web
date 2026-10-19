@@ -4,7 +4,7 @@ import { applicationAdminEmail, applicationReceivedEmail } from '@/lib/professio
 import { getClientIdentifier, isPdfFile, jsonError } from '@/lib/professionals/http'
 import { ADMIN_INBOX, sendMail } from '@/lib/professionals/mailer'
 import { candidaturaRequestSchema } from '@/lib/professionals/schema'
-import { createApplication, readUpload, saveUpload } from '@/lib/professionals/store'
+import { createApplication } from '@/lib/professionals/store'
 import { isDuplicateSubmission, markSubmissionSent, rateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -71,8 +71,17 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const storedCv = await saveUpload('cv', cv)
-  
+  // Convertiamo il file PDF direttamente in buffer di memoria per l'allegato email
+  const cvArrayBuffer = await cv.arrayBuffer()
+  const cvBuffer = Buffer.from(cvArrayBuffer)
+
+  const storedCv = {
+    originalName: cv.name,
+    storedName: `${Date.now()}_${cv.name}`,
+    mimeType: cv.type,
+    sizeBytes: cv.size,
+  }
+
   const applicationPayload = {
     firstName: data.firstName,
     lastName: data.lastName,
@@ -95,19 +104,25 @@ export async function POST(request: NextRequest) {
     bio: data.bio ?? '',
     cv: storedCv,
   }
-  // Salva direttamente nel Database Cloud Supabase
-  await createApplication(applicationPayload)
 
-  const application = {
-    ...applicationPayload,
+  // Tenta di creare la candidatura nel DB se configurato
+  try {
+    await createApplication(applicationPayload)
+  } catch (err) {
+    console.warn('Salvataggio DB saltato o avviso:', err)
+  }
+
+  // Costruiamo l'oggetto candidatura per la composizione delle mail
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const application: any = {
     id: `app_${crypto.randomUUID()}`,
     createdAt: new Date().toISOString(),
-    status: 'pending' as const,
+    status: 'pending',
+    ...applicationPayload,
   }
 
   const adminMail = applicationAdminEmail(application)
   const confirmMail = applicationReceivedEmail(application)
-  const cvBuffer = await readUpload('cv', application.cv.storedName)
 
   await Promise.all([
     sendMail({
@@ -119,8 +134,8 @@ export async function POST(request: NextRequest) {
       tag: 'candidatura',
       idempotencyKey: `candidatura-admin/${submissionId}`,
       attachments:
-        cvBuffer && cvBuffer.length > 0
-          ? [{ filename: application.cv.originalName, content: cvBuffer }]
+        cvBuffer.length > 0
+          ? [{ filename: cv.name, content: cvBuffer }]
           : undefined,
     }),
     sendMail({
