@@ -9,7 +9,13 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function AdminCandidaturePage() {
-  const applications = await listApplications()
+  let applications: any[] = []
+  
+  try {
+    applications = await listApplications()
+  } catch (error) {
+    console.error('Errore durante il recupero delle candidature:', error)
+  }
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
