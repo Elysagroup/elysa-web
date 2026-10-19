@@ -6,8 +6,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 function adminPassword() {
-  // Imposta esattamente la password che digiterai nel browser:
-  return 'Elysa2026'
+  return process.env.ADMIN_PASSWORD || 'elysa2026'
 }
 
 export async function POST(request: NextRequest) {
