@@ -1,35 +1,46 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { PsychologistLoginForm } from '@/components/professionals/login-forms'
+export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = {
-  title: 'Accesso professionisti',
-}
-
-export default async function DashboardLoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string }>
-}) {
-  const { next } = await searchParams
-  const nextPath = next?.startsWith('/dashboard') ? next : '/dashboard'
-
+export default function ProfessionalLoginPage() {
   return (
-    <section className="mx-auto flex max-w-md flex-col px-5 py-16 sm:px-8">
-      <h1 className="text-3xl font-semibold text-ocean">Area riservata professionisti</h1>
-      <p className="mt-3 text-muted-foreground">
-        Accesso per psicologi con candidatura approvata. Se non hai ancora inviato la richiesta, puoi farlo dalla
-        pagina di candidatura.
-      </p>
-      <div className="mt-8 rounded-3xl border border-border bg-white p-6 shadow-sm sm:p-8">
-        <PsychologistLoginForm nextPath={nextPath} />
+    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-12">
+      <div className="rounded-3xl border border-border bg-white p-8 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wider text-sage-deep">Area Riservata</p>
+        <h1 className="mt-2 text-2xl font-semibold text-ocean">Accedi come Professionista</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Inserisci le credenziali ricevute via email per accedere al tuo profilo.
+        </p>
+
+        <form action="/api/dashboard/login" method="post" className="mt-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-ink">Email</label>
+            <input
+              type="email"
+              name="email"
+              required
+              className="mt-1 w-full rounded-xl border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ocean"
+              placeholder="nome@esempio.it"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-ink">Password Temporanea</label>
+            <input
+              type="password"
+              name="password"
+              required
+              className="mt-1 w-full rounded-xl border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ocean"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full rounded-full bg-ocean py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Accedi
+          </button>
+        </form>
       </div>
-      <p className="mt-6 text-sm text-muted-foreground">
-        Non sei ancora in Elysa?{' '}
-        <Link href="/candidatura-psicologo" className="font-medium text-ocean underline underline-offset-4">
-          Invia la candidatura
-        </Link>
-      </p>
-    </section>
+    </div>
   )
 }
