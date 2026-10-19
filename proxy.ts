@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { readSessionToken, sessionCookieName, type SessionPayload, type SessionRole } from '@/lib/professionals/session'
+import { readSessionToken, sessionCookieName } from '@/lib/professionals/session'
 
 type RefreshedCookie = {
   name: string
@@ -8,7 +8,7 @@ type RefreshedCookie = {
   options?: Parameters<NextResponse['cookies']['set']>[2]
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/dashboard')) {

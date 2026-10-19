@@ -20,9 +20,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex min-h-dvh flex-col bg-ivory">
       <header className="border-b border-border bg-white">
-        <div className="w-full bg-red-600 px-4 py-2 text-center text-sm font-bold text-white">
-          TEST DEPLOYMENT V1
-        </div>
         <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-5 py-2 sm:px-8">
           <Link href={loggedIn ? '/dashboard' : '/dashboard/login'} className="rounded-md">
             <Logo />
