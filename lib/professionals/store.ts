@@ -9,6 +9,7 @@ import type {
   PublicProfessional,
   StoredFile,
 } from '@/lib/professionals/types'
+import type { ClassProposalFormValues } from '@/lib/professionals/schema'
 
 export const DEMO_PSYCHOLOGIST_EMAIL = 'chiara.bianchi@elysa.demo'
 export const DEMO_PSYCHOLOGIST_PASSWORD = 'DemoElysa2026!'
@@ -314,14 +315,17 @@ export async function rejectApplication(applicationId: string) {
 // CLASS PROPOSALS / CLASSI
 // ==========================================
 
-export async function createClassProposal(psychologistId: string, data: any) {
+export async function createClassProposal(
+  psychologistAccountId: string,
+  data: ClassProposalFormValues & { materials: StoredFile[] },
+) {
   const id = `class_${crypto.randomUUID()}`
   const now = new Date().toISOString()
 
   const { error } = await requireSupabaseAdmin().from('class_proposals').insert([
     {
       id,
-      psychologist_id: psychologistId,
+      psychologist_id: psychologistAccountId,
       created_at: now,
       status: 'pending',
       title: data.title,
@@ -338,7 +342,7 @@ export async function createClassProposal(psychologistId: string, data: any) {
       session_days: data.sessionDays || [],
       session_time: data.sessionTime || '18:30',
       location_type: data.locationType || 'online',
-      materials_json: data.materials || [],
+      materials_json: data.materials ?? [],
     },
   ])
 

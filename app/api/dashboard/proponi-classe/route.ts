@@ -16,6 +16,30 @@ import type { StoredFile } from '@/lib/professionals/types'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+function getErrorMessage(err: unknown) {
+  if (err instanceof Error) return err.message
+  if (typeof err === 'string') return err
+  if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+    return err.message
+  }
+  return 'Errore sconosciuto'
+}
+
+function getErrorDetails(err: unknown) {
+  if (err instanceof Error) {
+    const cause = err as Error & { code?: unknown; details?: unknown; hint?: unknown }
+    return {
+      name: cause.name,
+      message: cause.message,
+      ...(cause.code ? { code: cause.code } : {}),
+      ...(cause.details ? { details: cause.details } : {}),
+      ...(cause.hint ? { hint: cause.hint } : {}),
+    }
+  }
+  if (err && typeof err === 'object') return err
+  return { value: err }
+}
+
 export async function POST(request: NextRequest) {
   const materials: StoredFile[] = []
   let proposalSaved = false
@@ -107,7 +131,9 @@ export async function POST(request: NextRequest) {
       }
     }
     console.error('[PROPONI-CLASSE ERROR]:', err)
-    const message = err instanceof Error ? err.message : 'Errore interno del server'
-    return NextResponse.json({ error: message || 'Errore interno del server' }, { status: 500 })
+    return NextResponse.json(
+      { error: getErrorMessage(err), details: getErrorDetails(err) },
+      { status: 500 },
+    )
   }
 }
