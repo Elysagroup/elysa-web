@@ -14,9 +14,9 @@ const FILTERS: Array<{ id: 'all' | ApplicationStatus; label: string }> = [
 ]
 
 export function AdminApplications({ initial }: { initial: PsychologistApplication[] }) {
-  const [items, setItems] = useState(initial)
+  const [items, setItems] = useState(initial || [])
   const [filter, setFilter] = useState<'all' | ApplicationStatus>('all')
-  const [selectedId, setSelectedId] = useState(initial.find((item) => item.status === 'pending')?.id ?? initial[0]?.id)
+  const [selectedId, setSelectedId] = useState(initial?.find((item) => item.status === 'pending')?.id ?? initial?.[0]?.id)
   const [busy, setBusy] = useState<'approve' | 'reject' | null>(null)
   const [note, setNote] = useState('')
   const [message, setMessage] = useState<string>()
@@ -37,10 +37,14 @@ export function AdminApplications({ initial }: { initial: PsychologistApplicatio
         headers: { 'Content-Type': 'application/json' },
         body: kind === 'reject' ? JSON.stringify({ note }) : undefined,
       })
+      
+      const data = await response.json().catch(() => ({}))
+
       if (!response.ok) {
-        setMessage('Operazione non riuscita. Riprova.')
+        setMessage(data?.error || data?.message || `Operazione non riuscita (${response.status}).`)
         return
       }
+
       setItems((current) =>
         current.map((item) =>
           item.id === selected.id
@@ -48,13 +52,30 @@ export function AdminApplications({ initial }: { initial: PsychologistApplicatio
             : item,
         ),
       )
-      setMessage(kind === 'approve' ? 'Candidatura approvata. È stata inviata l’email di attivazione.' : 'Candidatura rifiutata. È stata inviata la notifica.')
-    } catch {
-      setMessage('Operazione non riuscita. Riprova.')
+      setMessage(kind === 'approve' ? 'Candidatura approvata! Email inviata con successo.' : 'Candidatura rifiutata.')
+    } catch (err) {
+      setMessage('Errore di connessione di rete. Riprova.')
     } finally {
       setBusy(null)
     }
   }
+
+  // Helper per verificare la presenza del CV in modo sicuro
+  const hasCv = useMemo(() => {
+    if (!selected) return false
+    const cv: any = (selected as any).cv
+    if (!cv) return false
+    if (typeof cv === 'string') return cv.trim().length > 0
+    if (typeof cv === 'object') return Boolean(cv.url || cv.path || cv.originalName)
+    return Boolean(cv)
+  }, [selected])
+
+  const cvName = useMemo(() => {
+    if (!selected) return 'CV'
+    const cv: any = (selected as any).cv
+    if (typeof cv === 'object' && cv?.originalName) return cv.originalName
+    return 'Curriculum Vitae'
+  }, [selected])
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
@@ -107,7 +128,7 @@ export function AdminApplications({ initial }: { initial: PsychologistApplicatio
                     <StatusPill status={item.status} />
                   </td>
                   <td className="border-b border-border/70 py-2 text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleDateString('it-IT')}
+                    {item.createdAt ? new Date(item.createdAt).toLocaleDateString('it-IT') : '-'}
                   </td>
                 </tr>
               ))}
@@ -138,17 +159,18 @@ export function AdminApplications({ initial }: { initial: PsychologistApplicatio
                 ['Albo', `${selected.regionalOrder} n. ${selected.alboNumber} · sez. ${selected.alboSection}`],
                 ['Esperienza', `${selected.yearsExperience} anni`],
                 ['Approccio', selected.therapeuticApproach],
-                ['Aree', selected.thematicAreas.map(competenceAreaLabel).join(', ')],
-                ['Disponibilità', `${selected.availabilityDays.map(weekdayLabel).join(', ')}${selected.availabilityNotes ? ` · ${selected.availabilityNotes}` : ''}`],
+                ['Aree', (selected.thematicAreas || []).map(competenceAreaLabel).join(', ')],
+                ['Disponibilità', `${(selected.availabilityDays || []).map(weekdayLabel).join(', ')}${selected.availabilityNotes ? ` · ${selected.availabilityNotes}` : ''}`],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
-                  <dd className="text-slate-ink">{value}</dd>
+                  <dd className="text-slate-ink">{value || '-'}</dd>
                 </div>
               ))}
             </dl>
             {selected.bio ? <p className="text-sm leading-relaxed text-muted-foreground">{selected.bio}</p> : null}
-            {selected.cv.size > 0 ? (
+            
+            {hasCv ? (
               <a
                 href={`/api/admin/candidature/${selected.id}/cv`}
                 target="_blank"
@@ -156,12 +178,18 @@ export function AdminApplications({ initial }: { initial: PsychologistApplicatio
                 className="inline-flex items-center gap-2 rounded-full border border-ocean/20 px-4 py-2 text-sm font-medium text-ocean hover:bg-ivory"
               >
                 <FileText className="size-4" aria-hidden="true" />
-                Apri CV ({selected.cv.originalName})
+                Apri CV ({cvName})
               </a>
             ) : (
-              <p className="text-sm text-muted-foreground">CV non disponibile per questa scheda di esempio.</p>
+              <p className="text-sm text-muted-foreground">CV non disponibile per questa scheda.</p>
             )}
-            {message ? <p className="text-sm text-ocean">{message}</p> : null}
+
+            {message ? (
+              <div className="rounded-lg bg-ivory p-3 text-sm font-medium text-ocean border border-ocean/10">
+                {message}
+              </div>
+            ) : null}
+
             {selected.status === 'pending' ? (
               <div className="space-y-3 border-t border-border pt-4">
                 <label className="block text-sm">
@@ -204,8 +232,8 @@ function StatusPill({ status }: { status: ApplicationStatus }) {
     rejected: 'bg-destructive/10 text-destructive',
   }
   return (
-    <span className={cn('inline-flex rounded-full px-3 py-1 text-xs font-semibold', tones[status])}>
-      {applicationStatusLabels[status]}
+    <span className={cn('inline-flex rounded-full px-3 py-1 text-xs font-semibold', tones[status] || tones.pending)}>
+      {applicationStatusLabels[status] || status}
     </span>
   )
 }
