@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { KeyRound, LayoutDashboard, Plus } from 'lucide-react'
 import { Logo } from '@/components/logo'
+import { ProfessionalLogoutButton } from '@/components/professionals/logout-button'
 import { requireRole } from '@/lib/professionals/http'
 
 export const metadata: Metadata = {
@@ -16,32 +18,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const loggedIn = Boolean(session)
 
   return (
-    <div className="min-h-dvh bg-ivory">
+    <div className="flex min-h-dvh flex-col bg-ivory">
       <header className="border-b border-border bg-white">
-        <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 py-3 sm:px-8">
+        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-5 py-2 sm:px-8">
           <Link href={loggedIn ? '/dashboard' : '/dashboard/login'} className="rounded-md">
             <Logo />
           </Link>
           {loggedIn ? (
-            <nav aria-label="Navigazione area professionisti" className="order-3 flex w-full flex-wrap items-center gap-x-5 gap-y-3 border-t border-border pt-3 text-sm sm:order-none sm:w-auto sm:border-0 sm:pt-0">
-              <Link href="/dashboard" className="min-h-11 inline-flex items-center font-medium text-ocean hover:underline">
-                Panoramica
-              </Link>
-              <Link href="/dashboard/proponi-classe" className="min-h-11 inline-flex items-center font-medium text-ocean hover:underline">
-                Proponi una classe
-              </Link>
-              <Link href="/dashboard/password" className="min-h-11 inline-flex items-center font-medium text-ocean hover:underline">
-                Password
-              </Link>
-              <span className="hidden max-w-40 truncate text-muted-foreground lg:inline" title={session?.name}>
+            <div className="flex items-center gap-3 sm:gap-5">
+              <span className="hidden max-w-48 truncate text-sm text-muted-foreground sm:inline" title={session?.name}>
                 {session?.name}
               </span>
-              <form action="/api/dashboard/logout" method="post">
-                <button type="submit" className="min-h-11 font-medium text-ocean underline underline-offset-4">
-                  Esci
-                </button>
-              </form>
-            </nav>
+              <ProfessionalLogoutButton />
+            </div>
           ) : (
             <div className="flex items-center gap-4 text-sm">
               <Link href="/per-professionisti" className="font-medium text-ocean underline underline-offset-4">
@@ -52,7 +41,42 @@ export default async function DashboardLayout({ children }: { children: React.Re
           )}
         </div>
       </header>
-      {children}
+
+      {loggedIn ? (
+        <>
+          <nav aria-label="Navigazione area professionisti" className="mx-auto flex w-full max-w-7xl flex-wrap gap-x-5 gap-y-1 border-b border-border bg-white px-5 py-2 text-sm lg:hidden sm:px-8">
+            <Link href="/dashboard" className="inline-flex min-h-11 items-center gap-2 font-medium text-ocean hover:underline">
+              <LayoutDashboard className="size-4" aria-hidden="true" /> Panoramica
+            </Link>
+            <Link href="/dashboard/proponi-classe" className="inline-flex min-h-11 items-center gap-2 font-medium text-ocean hover:underline">
+              <Plus className="size-4" aria-hidden="true" /> Proponi una classe
+            </Link>
+            <Link href="/dashboard/password" className="inline-flex min-h-11 items-center gap-2 font-medium text-ocean hover:underline">
+              <KeyRound className="size-4" aria-hidden="true" /> Password
+            </Link>
+          </nav>
+          <div className="mx-auto flex w-full max-w-7xl flex-1">
+            <aside className="sticky top-0 hidden h-[calc(100dvh-4rem)] w-64 shrink-0 flex-col border-r border-border bg-ivory px-5 py-8 lg:flex">
+              <p className="mb-4 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Area professionisti</p>
+              <nav aria-label="Navigazione dashboard" className="grid gap-1">
+                <Link href="/dashboard" className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-ocean hover:bg-white">
+                  <LayoutDashboard className="size-4" aria-hidden="true" /> Panoramica
+                </Link>
+                <Link href="/dashboard/proponi-classe" className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-ocean hover:bg-white">
+                  <Plus className="size-4" aria-hidden="true" /> Proponi una classe
+                </Link>
+                <Link href="/dashboard/password" className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-ocean hover:bg-white">
+                  <KeyRound className="size-4" aria-hidden="true" /> Modifica password
+                </Link>
+              </nav>
+              <div className="mt-auto border-t border-border pt-5">
+                <ProfessionalLogoutButton className="w-full justify-start rounded-lg" />
+              </div>
+            </aside>
+            <div className="min-w-0 flex-1">{children}</div>
+          </div>
+        </>
+      ) : children}
     </div>
   )
 }
