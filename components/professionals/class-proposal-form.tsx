@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircle2, Loader2, Upload } from 'lucide-react'
@@ -73,9 +74,14 @@ export function ClassProposalForm() {
           La proposta è stata salvata con stato in revisione. Il team Elysa ha ricevuto una notifica a
           info@elysagroup.com e la valuterà prima della pubblicazione nella sezione percorsi.
         </p>
-        <button type="button" onClick={() => setStatus('idle')} className="mt-6 font-medium text-ocean underline underline-offset-4">
-          Invia un’altra proposta
-        </button>
+        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Link href="/dashboard" className="font-medium text-ocean underline underline-offset-4">
+            Torna alla panoramica
+          </Link>
+          <button type="button" onClick={() => setStatus('idle')} className="font-medium text-ocean underline underline-offset-4">
+            Invia un’altra proposta
+          </button>
+        </div>
       </div>
     )
   }

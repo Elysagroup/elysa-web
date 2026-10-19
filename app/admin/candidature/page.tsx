@@ -59,4 +59,4 @@ export default async function AdminCandidaturePage() {
       )}
     </section>
   )
-} 
+}

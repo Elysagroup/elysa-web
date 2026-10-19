@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { ClassProposalForm } from '@/components/professionals/class-proposal-form'
 
 export const metadata: Metadata = {
@@ -8,6 +9,9 @@ export const metadata: Metadata = {
 export default function ProponiClassePage() {
   return (
     <section className="mx-auto max-w-3xl px-5 py-12 sm:px-8">
+      <Link href="/dashboard" className="mb-4 inline-flex text-sm font-medium text-ocean underline underline-offset-4">
+        Torna alla panoramica
+      </Link>
       <h1 className="text-3xl font-semibold text-ocean">Proponi una nuova classe</h1>
       <p className="mt-3 text-muted-foreground">
         Definisci titolo, struttura del gruppo, orari ipotetici e materiali. La proposta viene salvata in revisione e
