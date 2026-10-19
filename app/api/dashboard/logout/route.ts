@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { sessionCookieName } from '@/lib/professionals/session'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
+  const supabase = await createSupabaseServerClient()
+  await supabase.auth.signOut()
   const response = NextResponse.redirect(new URL('/dashboard/login', request.url), 303)
-  response.cookies.set(sessionCookieName('psychologist'), '', { path: '/', maxAge: 0 })
   return response
 }

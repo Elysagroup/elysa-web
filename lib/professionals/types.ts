@@ -35,6 +35,7 @@ export type PsychologistApplication = {
 
 export type PsychologistAccount = {
   id: string
+  authUserId?: string
   applicationId: string
   email: string
   passwordHash: string

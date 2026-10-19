@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { Logo } from '@/components/logo'
-import { PRO_COOKIE, readSessionToken } from '@/lib/professionals/session'
+import { requireRole } from '@/lib/professionals/http'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -13,9 +12,8 @@ export const metadata: Metadata = {
 }
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const jar = await cookies()
-  const session = await readSessionToken(jar.get(PRO_COOKIE)?.value)
-  const loggedIn = session?.role === 'psychologist'
+  const session = await requireRole('psychologist')
+  const loggedIn = Boolean(session)
 
   return (
     <div className="min-h-dvh bg-ivory">
@@ -32,8 +30,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <Link href="/dashboard/proponi-classe" className="min-h-11 inline-flex items-center font-medium text-ocean hover:underline">
                 Proponi una classe
               </Link>
-              <span className="hidden max-w-40 truncate text-muted-foreground lg:inline" title={session.name}>
-                {session.name}
+              <Link href="/dashboard/password" className="min-h-11 inline-flex items-center font-medium text-ocean hover:underline">
+                Password
+              </Link>
+              <span className="hidden max-w-40 truncate text-muted-foreground lg:inline" title={session?.name}>
+                {session?.name}
               </span>
               <form action="/api/dashboard/logout" method="post">
                 <button type="submit" className="min-h-11 font-medium text-ocean underline underline-offset-4">

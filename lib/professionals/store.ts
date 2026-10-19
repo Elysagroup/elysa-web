@@ -47,6 +47,7 @@ function mapApplication(row: any): PsychologistApplication {
 function mapAccount(row: any): PsychologistAccount {
   return {
     id: row.id,
+    authUserId: row.auth_user_id || undefined,
     applicationId: row.application_id,
     email: row.email,
     passwordHash: row.password_hash,
@@ -95,7 +96,8 @@ function mapClassProposal(row: any): ClassProposal {
 // ==========================================
 
 export async function findAccountByEmail(email: string) {
-  const { data } = await supabase
+  const client = supabaseAdmin ?? supabase
+  const { data } = await client
     .from('accounts')
     .select('*')
     .ilike('email', email)
@@ -104,8 +106,84 @@ export async function findAccountByEmail(email: string) {
   return data ? mapAccount(data) : null
 }
 
+export async function findAccountByAuthUserId(authUserId: string) {
+  const client = supabaseAdmin ?? supabase
+  const { data } = await client
+    .from('accounts')
+    .select('*')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle()
+
+  return data ? mapAccount(data) : null
+}
+
+export async function isAccountApproved(accountId: string) {
+  const client = supabaseAdmin ?? supabase
+  const { data, error } = await client
+    .from('applications')
+    .select('id')
+    .eq('account_id', accountId)
+    .eq('status', 'approved')
+    .maybeSingle()
+
+  if (error) throw error
+  return Boolean(data)
+}
+
+export async function createOrUpdateProfessionalAuthUser(
+  email: string,
+  password: string,
+  accountId: string,
+): Promise<{ id: string; created: boolean }> {
+  const admin = requireSupabaseAdmin()
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { professional_account_id: accountId },
+  })
+  if (!error && data.user) return { id: data.user.id, created: true }
+
+  if (!error || (error.code !== 'email_exists' && !error.message.toLowerCase().includes('already'))) {
+    throw error ?? new Error('Creazione utente Supabase Auth non riuscita.')
+  }
+
+  for (let page = 1; ; page += 1) {
+    const { data: users, error: listError } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+    if (listError) throw listError
+    const existing = users.users.find((user) => user.email?.toLowerCase() === email.toLowerCase())
+    if (existing) {
+      const { data: updated, error: updateError } = await admin.auth.admin.updateUserById(existing.id, {
+        password,
+        email_confirm: true,
+        user_metadata: { ...existing.user_metadata, professional_account_id: accountId },
+      })
+      if (updateError) throw updateError
+      if (!updated.user) throw new Error('Aggiornamento utente Supabase Auth non riuscito.')
+      return { id: updated.user.id, created: false }
+    }
+    if (users.users.length < 1000) break
+  }
+
+  throw error
+}
+
+export async function linkAccountToAuthUser(accountId: string, authUserId: string) {
+  const admin = requireSupabaseAdmin()
+  const { data, error } = await admin
+    .from('accounts')
+    .update({ auth_user_id: authUserId })
+    .eq('id', accountId)
+    .or(`auth_user_id.is.null,auth_user_id.eq.${authUserId}`)
+    .select('id')
+
+  if (error) throw error
+  if (!data?.length) throw new Error('Account professionista già collegato a un altro utente Auth.')
+}
+
 export async function findAccountById(id: string) {
-  const { data } = await supabase
+  const client = supabaseAdmin ?? supabase
+  const { data } = await client
     .from('accounts')
     .select('*')
     .eq('id', id)
@@ -179,10 +257,13 @@ export async function approveApplication(applicationId: string, tempPassword: st
 
   const accountId = `pro_${crypto.randomUUID()}`
   const now = new Date().toISOString()
+  const authUser = await createOrUpdateProfessionalAuthUser(app.email, tempPassword, accountId)
 
-  const { error: accError } = await supabase.from('accounts').insert([
+  const admin = requireSupabaseAdmin()
+  const { error: accError } = await admin.from('accounts').insert([
     {
       id: accountId,
+      auth_user_id: authUser.id,
       application_id: applicationId,
       email: app.email,
       password_hash: hashPassword(tempPassword),
@@ -199,14 +280,21 @@ export async function approveApplication(applicationId: string, tempPassword: st
       created_at: now,
     },
   ])
-  if (accError) throw accError
+  if (accError) {
+    if (authUser.created) await admin.auth.admin.deleteUser(authUser.id)
+    throw accError
+  }
 
-  const { error: upError } = await supabase
+  const { error: upError } = await admin
     .from('applications')
     .update({ status: 'approved', reviewed_at: now, account_id: accountId })
     .eq('id', applicationId)
 
-  if (upError) throw upError
+  if (upError) {
+    await admin.from('accounts').delete().eq('id', accountId)
+    if (authUser.created) await admin.auth.admin.deleteUser(authUser.id)
+    throw upError
+  }
 }
 
 export async function rejectApplication(applicationId: string) {
@@ -263,7 +351,8 @@ export async function createClassProposal(psychologistId: string, data: any) {
 }
 
 export async function listClassProposalsFor(psychologistId: string): Promise<ClassProposal[]> {
-  const { data } = await supabase
+  const client = supabaseAdmin ?? supabase
+  const { data } = await client
     .from('class_proposals')
     .select('*')
     .eq('psychologist_id', psychologistId)
@@ -273,7 +362,8 @@ export async function listClassProposalsFor(psychologistId: string): Promise<Cla
 }
 
 export async function listAllClassProposals(): Promise<ClassProposal[]> {
-  const { data } = await supabase
+  const client = supabaseAdmin ?? supabase
+  const { data } = await client
     .from('class_proposals')
     .select('*')
     .order('created_at', { ascending: false })

@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ClassProposalForm } from '@/components/professionals/class-proposal-form'
+import { requireRole } from '@/lib/professionals/http'
 
 export const metadata: Metadata = {
   title: 'Proponi una classe',
 }
 
-export default function ProponiClassePage() {
+export default async function ProponiClassePage() {
+  const session = await requireRole('psychologist')
+  if (!session) redirect('/dashboard/login')
+
   return (
     <section className="mx-auto max-w-3xl px-5 py-12 sm:px-8">
       <Link href="/dashboard" className="mb-4 inline-flex text-sm font-medium text-ocean underline underline-offset-4">

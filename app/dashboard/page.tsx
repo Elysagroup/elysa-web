@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
-import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { ButtonLink } from '@/components/button-link'
 import { classProposalStatusLabels, competenceAreaLabel } from '@/lib/professionals/constants'
-import { PRO_COOKIE, readSessionToken } from '@/lib/professionals/session'
+import { requireRole } from '@/lib/professionals/http'
 import { findAccountById, listClassProposalsFor } from '@/lib/professionals/store'
 
 export const metadata: Metadata = {
@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardHomePage() {
-  const jar = await cookies()
-  const session = await readSessionToken(jar.get(PRO_COOKIE)?.value)
+  const session = await requireRole('psychologist')
+  if (!session) redirect('/dashboard/login')
   const account = session?.accountId ? await findAccountById(session.accountId) : null
   const proposals = session?.accountId ? await listClassProposalsFor(session.accountId) : []
 
