@@ -29,7 +29,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <span className="hidden max-w-48 truncate text-sm text-muted-foreground sm:inline" title={session?.name}>
                 {session?.name}
               </span>
-              <ProfessionalLogoutButton />
             </div>
           ) : (
             <div className="flex items-center gap-4 text-sm">
@@ -39,6 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <span className="hidden text-muted-foreground sm:inline">Area riservata</span>
             </div>
           )}
+          <ProfessionalLogoutButton />
         </div>
       </header>
 
